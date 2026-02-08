@@ -1,0 +1,22 @@
+--- a/libpod/container_internal_common.go
++++ b/libpod/container_internal_common.go
+@@ -843,6 +843,19 @@
+ 
+ 	c.addMaskedPaths(&g)
+ 
++	// If running with the krun OCI runtime and the user did NOT request
++	// Podman's --init (i.e. no init binary is mounted), tell libkrun's
++	// in-VM init to exec the workload as PID 1 by setting
++	// KRUN_INIT_PID1=1 in the OCI process environment. Always set it
++	// and also persist it into c.config.Spec so the on-disk OCI spec contains it.
++	if c.config.OCIRuntime != "" && path.Base(c.config.OCIRuntime) == "krun" {
++		initAnnot, hasInitAnnot := c.config.Spec.Annotations[define.InspectAnnotationInit]
++		if !hasInitAnnot || initAnnot != define.InspectResponseTrue {
++			g.AddProcessEnv("KRUN_INIT_PID1", "1")
++			c.config.Spec.Process.Env = append(c.config.Spec.Process.Env, "KRUN_INIT_PID1=1")
++		}
++	}
++
+ 	return g.Config, cleanupFunc, nil
+ }
+ 
